@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tareas en tiempo real</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <h1>TAREAS</h1>
+    <ul id="tareas"></ul>
+
+
+    <h3>COMENTARIOS</h3>
+    <ul id="comentarios"></ul>
+
+
+    <script>
+        const tareasUl = document.getElementById("tareas");
+        let ultimoIdTarea = 0;
+
+        function pintarTareas(tareas) {
+            tareas.forEach(tarea => {
+                const li = document.createElement("li");
+                li.innerText = `${tarea.id} - ${tarea.tarea} - ${tarea.descripcion} - ${tarea.responsable}`;
+                tareasUl.appendChild(li);
+            });
+        }
+
+        function obtenerTareas() {
+            fetch('http://localhost:3000/tarea/obtener-lista')
+                .then(res => res.json())
+                .then(data => {
+                    const tareas = data.tarea;
+                    pintarTareas(tareas);
+                    ultimoIdTarea = tareas[tareas.length - 1].id;
+
+                    obtenerTareasNuevas(3000);
+                })
+                .catch(console.error);
+        }
+
+        function obtenerTareasNuevas(interval) {
+            fetch(`http://localhost:3000/tarea/actualizar?idTarea=${ultimoIdTarea}`)
+                .then(resp => resp.json())
+                .then(data => {
+                    const nuevasTareas = data.tareas;
+
+                    pintarTareas(nuevasTareas);
+
+                    if (nuevasTareas.length > 0) {
+                        ultimoIdTarea = nuevasTareas[nuevasTareas.length - 1].id;
+                    }
+
+                    setTimeout(() => obtenerTareasNuevas(interval), interval);
+                })
+                .catch(console.error);
+        }
+
+
+        obtenerTareas();
+
+        const comentariosUl = document.getElementById("comentarios");
+
+        function pintarcomentario(comentario) {
+            const li = document.createElement("li");
+            li.innerText = `${comentario.id} - ${comentario.comentario}`;
+
+            comentariosUl.appendChild(li);
+        }
+
+        function pintarcomentarios(comentarios) {
+            for (comentario of comentarios) {
+                pintarcomentario(comentario);
+            }
+        }
+
+        async function obtenerComentarios() {
+            const res = await fetch('http://localhost:3000/tarea/comentarios');
+            4
+            const data = await res.json();
+
+            if (data.comentario.length > 0) {
+                pintarcomentarios(data.comentario);
+            }
+        }
+
+        async function obtenerNuevosComentarios() {
+            try {
+                const res = await fetch(`http://localhost:3000/tarea/nuevo-comentario`);
+                const data = await res.json();
+
+                pintarcomentario(data.comentario);
+            } catch (error) {
+                console.log(error)
+            } finally {
+                obtenerNuevosComentarios();
+            }
+        }
+
+        (async() => {
+            await obtenerComentarios();
+            obtenerNuevosComentarios();
+        })();
+
+        const socket = new WebSocket("ws://localhost:3000");
+
+        socket.onopen = event => {
+            console.log('Cliente conectado');
+        };
+
+        socket.onclose = event => {
+            console.log('Cliente desconectado');
+        }
+
+        socket.onmessage = event => {
+            console.log('Mensaje recibido: ', event.data);
+        }
+    </script>
+</body>
+
+</html>
